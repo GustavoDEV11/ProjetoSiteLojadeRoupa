@@ -1,0 +1,164 @@
+const grid=document.querySelector('#grid');
+const search=document.querySelector('#search');
+const drawer=document.querySelector('#drawer');
+const drawerTitle=document.querySelector('#drawerTitle');
+const cart=document.querySelector('#cart');
+const count=document.querySelector('#count');
+const total=document.querySelector('#total');
+const cartView=document.querySelector('#cartView');
+const openCart=document.querySelector('#openCart');
+const closeCart=document.querySelector('#closeCart');
+const continueShopping=document.querySelector('#continueShopping');
+const clearCart=document.querySelector('#clearCart');
+const checkout=document.querySelector('#checkout');
+const toast=document.querySelector('#toast');
+
+const products = [
+  {id:1,name:'Slide Lacoste',category:'calcados',price:349.99,images:['slide-lacoste.webp']},
+  {id:2,name:'Velejador Tommy Hilfiger',subtitle:'Preto',category:'roupas',price:950,images:['velejador-preto.webp','velejador-preto-detalhe.webp']},
+  {id:3,name:'Velejador Tommy Hilfiger',subtitle:'Azul',category:'roupas',price:950,images:['velejador-azul-frente.webp','velejador-azul.webp']},
+  {id:4,name:'Velejador Tommy Hilfiger',subtitle:'Vermelho',category:'roupas',price:950,images:['velejador-vermelho.webp','velejador-vermelho-detalhe.webp']},
+  {id:15,name:'Moletom Tommy Hilfiger',subtitle:'Branco, vermelho e marinho',category:'roupas',price:350,images:['moletom-tommy-frente.webp','moletom-tommy-costas.webp']},
+  {id:5,name:'Mizuno Pro 15',category:'calcados',price:2300,images:['mizuno-pro-15-novo.webp']},
+  {id:13,name:'Tênis Mizuno',subtitle:'Preto e Prata',category:'calcados',price:2100,images:['mizuno-preto-prata.webp']},
+  {id:14,name:'Tênis Mizuno',subtitle:'Branco, Preto e Vermelho',category:'calcados',price:2100,images:['mizuno-branco-vermelho.webp']},
+  {id:16,name:'Tênis Dino Tommy Hilfiger',subtitle:'Branco',category:'calcados',price:320,images:['tenis-dino-tommy-1.webp','tenis-dino-tommy-2.webp']},
+  {id:17,name:'Tênis Dino Tommy Hilfiger',subtitle:'Cinza',category:'calcados',price:320,images:['tenis-dino-tommy-2.webp','tenis-dino-tommy-1.webp']},
+  {id:6,name:'Calça de Jogador',subtitle:'Preta',category:'roupas',price:190,images:['calca-jogador-preta.webp']},
+  {id:12,name:'Calça de Jogador',subtitle:'Cinza',category:'roupas',price:220,images:['calca-jogador.webp']},
+  {id:7,name:'Kit Adidas — Camisa, Short e Tênis',category:'kits',price:null,images:['kit-adidas.webp']},
+  {id:8,name:'Slide Nike',category:'calcados',price:410,images:['slide-nike.webp']},
+  {id:9,name:'Tênis Lacoste',category:'calcados',price:450,images:['tenis-lacoste.webp']},
+  {id:10,name:'Boné Tommy Hilfiger',subtitle:'Branco Established 1985',category:'acessorios',price:329.99,images:['bone-tommy-branco-frente.webp','bone-tommy-branco-detalhe.webp']},
+  {id:11,name:'Boné Tommy Hilfiger',subtitle:'Azul e Branco',category:'acessorios',price:379.99,images:['bone-tommy-azul-branco-1.webp','bone-tommy-azul-branco-2.webp']},
+  {id:18,name:'Boné Brooksfield',subtitle:'Branco 1987 • 100% original',category:'acessorios',price:290,images:['bone-brooksfield-branco.webp']}
+];
+
+const money = value => value.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const imageIndex = {};
+const selectedVariant = {};
+let cartItems = JSON.parse(localStorage.getItem('pedrinhuushop-cart') || '[]');
+
+function productPrice(product){
+  if(!product.variants) return product.price;
+  const variant = product.variants[selectedVariant[product.id] || 0];
+  return variant.price;
+}
+
+function renderProducts(list = products){
+  grid.innerHTML = list.map(product => {
+    const idx = imageIndex[product.id] || 0;
+    const price = productPrice(product);
+    const variants = product.variants ? `<div class="variantRow">${product.variants.map((variant,i)=>`<button class="variantBtn ${(selectedVariant[product.id]||0)===i?'active':''}" onclick="chooseVariant(${product.id},${i})">${variant.name}</button>`).join('')}</div>` : '';
+    const carousel = product.images.length > 1 ? `<button class="visualNav prev" onclick="changeImage(${product.id},-1)" aria-label="Foto anterior">‹</button><button class="visualNav next" onclick="changeImage(${product.id},1)" aria-label="Próxima foto">›</button><span class="imageCount">${idx+1}/${product.images.length}</span>` : '';
+    return `<article class="product"><div class="visual"><span class="badge">ORIGINAL</span><img src="assets/${product.images[idx]}" alt="${product.name}${product.subtitle?' '+product.subtitle:''}" loading="lazy">${carousel}</div><div class="info"><small>${product.category.toUpperCase()}</small><h3>${product.name}${product.subtitle?` — ${product.subtitle}`:''}</h3>${variants}<div class="price"><strong>${price===null?'Preço sob consulta':money(price)}</strong><span class="priceSub">Consulte tamanhos e disponibilidade</span></div><button class="add ${price===null?'secondary':''}" onclick="addToCart(${product.id})">${price===null?'Adicionar para consultar':'Adicionar à sacola'}</button></div></article>`;
+  }).join('') || '<p>Nenhum produto encontrado.</p>';
+}
+
+window.changeImage = (id,direction) => {
+  const product = products.find(item=>item.id===id);
+  imageIndex[id] = ((imageIndex[id]||0)+direction+product.images.length)%product.images.length;
+  renderCurrentFilter();
+};
+
+window.chooseVariant = (id,index) => {
+  selectedVariant[id]=index;
+  const product=products.find(item=>item.id===id);
+  const variant=product?.variants?.[index];
+  if(variant?.imageIndex!==undefined) imageIndex[id]=variant.imageIndex;
+  renderCurrentFilter();
+};
+
+window.addToCart = id => {
+  const product=products.find(item=>item.id===id);
+  const variantIndex=selectedVariant[id]||0;
+  const key=`${id}-${product.variants?variantIndex:'default'}`;
+  const existing=cartItems.find(item=>item.key===key);
+  if(existing) existing.qty+=1;
+  else cartItems.push({key,id,variantIndex,qty:1});
+  persistCart();
+  drawer.classList.add('open');
+  show('Produto adicionado à sacola');
+};
+
+window.changeQty=(key,change)=>{
+  const item=cartItems.find(entry=>entry.key===key);
+  if(!item) return;
+  item.qty+=change;
+  if(item.qty<=0) cartItems=cartItems.filter(entry=>entry.key!==key);
+  persistCart();
+};
+
+window.removeItem=key=>{
+  cartItems=cartItems.filter(item=>item.key!==key);
+  persistCart();
+};
+
+function cartDetails(item){
+  const product=products.find(entry=>entry.id===item.id);
+  const variant=product.variants?product.variants[item.variantIndex]:null;
+  return {product,variant,price:variant?variant.price:product.price};
+}
+
+function persistCart(){
+  localStorage.setItem('pedrinhuushop-cart',JSON.stringify(cartItems));
+  renderCart();
+}
+
+function renderCart(){
+  const quantity=cartItems.reduce((sum,item)=>sum+item.qty,0);
+  count.textContent=quantity;
+  cart.innerHTML=cartItems.length?cartItems.map(item=>{
+    const {product,variant,price}=cartDetails(item);
+    const thumbIndex=variant?.imageIndex??0;
+    return `<div class="cartProduct"><img class="cartThumb" src="assets/${product.images[thumbIndex]}" alt="${product.name}${variant?` ${variant.name}`:''}"><div class="cartMeta"><strong>${product.name}</strong><small>${product.subtitle||variant?.name||'Produto original'}</small><div class="cartLine"><div class="qty"><button onclick="changeQty('${item.key}',-1)" aria-label="Diminuir quantidade">−</button><span>${item.qty}</span><button onclick="changeQty('${item.key}',1)" aria-label="Aumentar quantidade">+</button></div><b>${price===null?'Sob consulta':money(price*item.qty)}</b></div><button class="remove" onclick="removeItem('${item.key}')">Remover</button></div></div>`;
+  }).join(''):'<div class="empty">Sua sacola está vazia.<br><small>Escolha seus produtos e eles aparecerão aqui.</small></div>';
+  const pricedSubtotal=cartItems.reduce((sum,item)=>{const {price}=cartDetails(item);return sum+(price===null?0:price*item.qty)},0);
+  const hasConsult=cartItems.some(item=>cartDetails(item).price===null);
+  total.innerHTML=cartItems.length?`<div class="cartSummary"><div class="summaryLine"><span>Produtos</span><span>${quantity}</span></div><div class="summaryLine"><span>Entrega</span><span>A calcular</span></div>${hasConsult?'<div class="summaryLine"><span>Itens sob consulta</span><span>A confirmar</span></div>':''}<div class="summaryLine totalLine"><span>Subtotal</span><strong>${money(pricedSubtotal)}</strong></div></div>`:'';
+  checkout.disabled=!cartItems.length;
+  clearCart.disabled=!cartItems.length;
+}
+
+function renderCurrentFilter(){
+  const active=document.querySelector('.filter.active');
+  const category=active?.dataset.cat||'todos';
+  const query=search.value.trim().toLowerCase();
+  renderProducts(products.filter(product=>(category==='todos'||product.category===category)&&(`${product.name} ${product.subtitle||''}`).toLowerCase().includes(query)));
+}
+
+function show(message){
+  toast.textContent=message;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),1800);
+}
+
+openCart.onclick=()=>{drawerTitle.textContent='Sua sacola';drawer.classList.add('open')};
+closeCart.onclick=()=>drawer.classList.remove('open');
+continueShopping.onclick=()=>drawer.classList.remove('open');
+clearCart.onclick=()=>{if(cartItems.length&&confirm('Remover todos os produtos da sacola?')){cartItems=[];persistCart();show('Sacola esvaziada')}};
+checkout.onclick=()=>{
+  if(!cartItems.length) return;
+  const lines=cartItems.map(item=>{
+    const {product,variant,price}=cartDetails(item);
+    const detail=product.subtitle||variant?.name||'';
+    const value=price===null?'preço sob consulta':money(price*item.qty);
+    return `• ${item.qty}x ${product.name}${detail?` — ${detail}`:''} — ${value}`;
+  });
+  const subtotal=cartItems.reduce((sum,item)=>{const {price}=cartDetails(item);return sum+(price===null?0:price*item.qty)},0);
+  const hasConsult=cartItems.some(item=>cartDetails(item).price===null);
+  const message=[
+    'Olá! Vim pelo site da PedrinhuuShop e quero fazer este pedido:',
+    '',
+    ...lines,
+    '',
+    `Subtotal${hasConsult?' dos itens com preço informado':''}: ${money(subtotal)}`,
+    '',
+    'Gostaria de confirmar tamanhos, disponibilidade e entrega.'
+  ].join('\n');
+  window.open(`https://wa.me/5511949486557?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+};
+document.querySelectorAll('.filter').forEach(button=>button.onclick=()=>{document.querySelector('.filter.active')?.classList.remove('active');button.classList.add('active');renderCurrentFilter()});
+search.oninput=renderCurrentFilter;
+renderProducts();
+renderCart();
